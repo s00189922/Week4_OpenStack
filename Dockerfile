@@ -1,11 +1,20 @@
-#Use nginx to serve the application##
-FROM nginx:alpine
 
-##Remove default nginx website
-RUN rm -rf /usr/share/nginx/html/*
+FROM node AS builder
 
-##Copy over the artifacts in dist folder to default nginx public folder
-COPY /dist/hello-world /usr/share/nginx/html
+WORKDIR /docker-app
 
-##nginx will run in the foreground
-CMD ["nginx","-g", "daemon off;"]
+COPY package*.json ./
+
+RUN npm install
+
+COPY . .
+
+RUN npm run build
+
+FROM nginx:1.13.12-alpine
+
+COPY --from=builder /docker-app/dist/docker-app /usr/share/nginx/html
+
+COPY ./nginx.conf /etc/nginx/conf.d/default.conf
+
+CMD sed -i -e 's/$PORT/'"$PORT"'/g' /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'
